@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Signal Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>SMC Signal Dashboard <span id="statusDot" class="dot stopped"></span></h1>
+    <div class="controls">
+      <span id="statusText">Stopped</span>
+      <button id="startBtn">▶ Start</button>
+      <button id="stopBtn">■ Stop</button>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Trades</div></div>
+    <div class="stat-card"><div class="stat-value" id="statWinRate">0%</div><div class="stat-label">Win Rate</div></div>
+    <div class="stat-card win"><div class="stat-value" id="statWins">0</div><div class="stat-label">Wins</div></div>
+    <div class="stat-card loss"><div class="stat-value" id="statLosses">0</div><div class="stat-label">Losses</div></div>
+    <div class="stat-card"><div class="stat-value" id="statOpen">0</div><div class="stat-label">Open Now</div></div>
+  </section>
+
+  <section>
+    <h2>Live Trades</h2>
+    <table id="openTable">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
+          <th>Last</th><th>Status</th><th>Score</th><th>Why</th>
+        </tr>
+      </thead>
+      <tbody id="openBody"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Closed Trades</h2>
+    <table id="closedTable">
+      <thead>
+        <tr><th>Symbol</th><th>Dir</th><th>Entry</th><th>Result</th><th>Reason</th><th>Closed</th></tr>
+      </thead>
+      <tbody id="closedBody"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Activity Log</h2>
+    <pre id="logBox"></pre>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

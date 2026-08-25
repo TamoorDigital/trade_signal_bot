@@ -26,6 +26,7 @@ h2 { font-size: 15px; color: var(--muted); margin: 28px 0 10px; text-transform: 
 .dot.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .dot.stopped { background: var(--red); }
 .controls { display: flex; align-items: center; gap: 12px; }
+.track-status { font-size: 11px; color: var(--green); }
 button {
   background: var(--panel); color: var(--text); border: 1px solid var(--border);
   padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
@@ -54,6 +55,7 @@ tr:last-child td { border-bottom: none; }
 .result-win { color: var(--green); }
 .result-loss { color: var(--red); }
 .result-partial { color: #d9a441; }
+.result-partial_profit { color: #d9a441; }
 
 #logBox {
   background: var(--panel); border: 1px solid var(--border); border-radius: 8px;

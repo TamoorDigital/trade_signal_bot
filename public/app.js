@@ -8,7 +8,8 @@ function fmt(n) {
 async function refreshStatus() {
   const s = await (await fetch('/api/status')).json();
   $('statusDot').className = 'dot ' + (s.running ? 'running' : 'stopped');
-  $('statusText').textContent = s.running ? 'Running' : 'Stopped';
+  $('statusText').textContent = 'Scanning: ' + (s.running ? 'Running' : 'Stopped');
+  $('trackStatusText').textContent = 'Tracking: ' + (s.trackingActive ? 'active (open trades always tracked)' : 'not started yet');
   $('logBox').textContent = s.logs.join('\n');
 }
 
@@ -46,10 +47,15 @@ async function refreshClosed() {
       <td>${t.symbol}</td>
       <td class="${t.direction}">${t.direction.toUpperCase()}</td>
       <td>${fmt(t.entry)}</td>
+      <td>${fmt(t.sl)}</td>
+      <td>${fmt(t.tps[0])}${t.hits && t.hits.tp1 ? ' ✅' : ''}</td>
+      <td>${fmt(t.tps[1])}${t.hits && t.hits.tp2 ? ' ✅' : ''}</td>
+      <td>${fmt(t.tps[2])}${t.hits && t.hits.tp3 ? ' ✅' : ''}</td>
       <td class="result-${t.result}">${t.result.toUpperCase()}</td>
       <td class="why">${t.closeReason || ''}</td>
+      <td>${new Date(t.openedAt).toLocaleString()}</td>
       <td>${new Date(t.closedAt).toLocaleString()}</td>
-    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">No closed trades yet</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="11" style="color:var(--muted)">No closed trades yet</td></tr>';
 }
 
 async function refreshAll() {

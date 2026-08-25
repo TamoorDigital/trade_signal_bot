@@ -10,7 +10,8 @@
   <header>
     <h1>SMC Signal Dashboard <span id="statusDot" class="dot stopped"></span></h1>
     <div class="controls">
-      <span id="statusText">Stopped</span>
+      <span id="statusText">Scanning: Stopped</span>
+      <span id="trackStatusText" class="track-status">Tracking: active</span>
       <button id="startBtn">▶ Start</button>
       <button id="stopBtn">■ Stop</button>
     </div>
@@ -41,7 +42,10 @@
     <h2>Closed Trades</h2>
     <table id="closedTable">
       <thead>
-        <tr><th>Symbol</th><th>Dir</th><th>Entry</th><th>Result</th><th>Reason</th><th>Closed</th></tr>
+        <tr>
+          <th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
+          <th>Result</th><th>Reason</th><th>Opened</th><th>Closed</th>
+        </tr>
       </thead>
       <tbody id="closedBody"></tbody>
     </table>

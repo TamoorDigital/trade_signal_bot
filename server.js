@@ -32,4 +32,7 @@ app.get('/api/stats', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Signal dashboard listening on :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Signal dashboard listening on :${PORT}`);
+  scheduler.ensureTracking(); // tracking runs from boot, independent of scan Start/Stop
+});

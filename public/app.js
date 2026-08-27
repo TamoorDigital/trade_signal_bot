@@ -51,11 +51,12 @@ async function refreshClosed() {
       <td>${fmt(t.tps[0])}${t.hits && t.hits.tp1 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[1])}${t.hits && t.hits.tp2 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[2])}${t.hits && t.hits.tp3 ? ' ✅' : ''}</td>
+      <td>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</td>
       <td class="result-${t.result}">${t.result.toUpperCase()}</td>
       <td class="why">${t.closeReason || ''}</td>
       <td>${new Date(t.openedAt).toLocaleString()}</td>
       <td>${new Date(t.closedAt).toLocaleString()}</td>
-    </tr>`).join('') || '<tr><td colspan="11" style="color:var(--muted)">No closed trades yet</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="12" style="color:var(--muted)">No closed trades yet</td></tr>';
 }
 
 async function refreshAll() {

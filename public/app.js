@@ -1,5 +1,29 @@
 const $ = (id) => document.getElementById(id);
 
+// Same 9 criteria our engine (lib/scoring.js) and the Gemini prompt use.
+const CRITERIA = [
+  { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 20 },
+  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 15 },
+  { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 18 },
+  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 12 },
+  { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 12 },
+  { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 5  },
+  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 4  },
+  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 5  },
+  { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 2  },
+];
+
+function renderBreakdown(t) {
+  const bd = t.breakdown || {};
+  const gbd = t.geminiBreakdown || null;
+  const rows = CRITERIA.map(c => {
+    const q = bd[c.ourKey] !== undefined ? bd[c.ourKey] : '-';
+    const g = gbd && gbd[c.gemKey] !== undefined ? gbd[c.gemKey] : '-';
+    return `<div class="bd-row"><span class="bd-label">${c.label}</span><span>Q ${q}/${c.weight}</span><span>G ${g}/${c.weight}</span></div>`;
+  }).join('');
+  return `<details class="score-details"><summary>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</summary><div class="bd-box">${rows}</div></details>`;
+}
+
 function fmt(n) {
   if (n === undefined || n === null) return '-';
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
@@ -35,7 +59,7 @@ async function refreshOpen() {
       <td>${fmt(t.tps[2])}${t.hits.tp3 ? ' ✅' : ''}</td>
       <td>${fmt(t.lastPrice)}</td>
       <td>${t.status}</td>
-      <td>${t.ourScore}/${t.maxScore} (G:${t.geminiScore})</td>
+      <td>${renderBreakdown(t)}</td>
       <td class="why">${(t.reasons || []).concat(t.geminiReasons || []).join('; ')}</td>
     </tr>`).join('') || '<tr><td colspan="11" style="color:var(--muted)">No open trades</td></tr>';
 }
@@ -51,7 +75,7 @@ async function refreshClosed() {
       <td>${fmt(t.tps[0])}${t.hits && t.hits.tp1 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[1])}${t.hits && t.hits.tp2 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[2])}${t.hits && t.hits.tp3 ? ' ✅' : ''}</td>
-      <td>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</td>
+      <td>${renderBreakdown(t)}</td>
       <td class="result-${t.result}">${t.result.toUpperCase()}</td>
       <td class="why">${t.closeReason || ''}</td>
       <td>${new Date(t.openedAt).toLocaleString()}</td>

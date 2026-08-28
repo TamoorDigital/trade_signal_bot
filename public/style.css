@@ -62,3 +62,16 @@ tr:last-child td { border-bottom: none; }
   padding: 12px; font-size: 11px; color: var(--muted); max-height: 220px; overflow-y: auto;
   white-space: pre-wrap;
 }
+
+.score-details { font-size: 11px; }
+.score-details summary { cursor: pointer; color: var(--accent); list-style: none; }
+.score-details summary::-webkit-details-marker { display: none; }
+.score-details summary::before { content: '▸ '; }
+.score-details[open] summary::before { content: '▾ '; }
+.bd-box {
+  margin-top: 6px; padding: 8px; background: #0e1119; border: 1px solid var(--border);
+  border-radius: 6px; min-width: 220px;
+}
+.bd-row { display: grid; grid-template-columns: 1fr 60px 60px; gap: 6px; padding: 2px 0; color: var(--muted); }
+.bd-label { color: var(--text); }
+

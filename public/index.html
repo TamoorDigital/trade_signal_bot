@@ -26,11 +26,39 @@
   </section>
 
   <section>
+    <h2>Auto-Trade (MEXC)</h2>
+    <div class="autotrade-box" id="autotradeBox">
+      <div class="at-field">
+        <label>Leverage</label>
+        <input type="number" id="leverageInput" value="5" min="1" disabled />
+      </div>
+      <div class="at-field">
+        <label>USDT per trade</label>
+        <input type="number" id="usdtInput" value="20" min="1" disabled />
+      </div>
+      <div class="at-field">
+        <label>Live trading</label>
+        <div class="toggle-wrap">
+          <div class="toggle disabled" id="autotradeToggle"></div>
+          <span class="autotrade-status off" id="autotradeStatusText">OFF (tracking only)</span>
+        </div>
+      </div>
+      <button class="edit-btn" id="editBtn">✎ Edit</button>
+      <button id="saveBtn" style="display:none">💾 Save</button>
+      <div class="autotrade-warn">
+        When OFF, signals are scored, scanned and tracked exactly as normal — no real orders are placed.
+        When ON, every new signal opens a REAL market order on MEXC sized from Leverage × USDT-per-trade,
+        and every close (win/loss/partial/invalidated) closes that real position too. Real money, real risk.
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>Live Trades</h2>
     <table id="openTable">
       <thead>
         <tr>
-          <th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
+          <th>Symbol</th><th>Dir</th><th>Mode</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
           <th>Last</th><th>Status</th><th>Score</th><th>Why</th>
         </tr>
       </thead>
@@ -43,7 +71,7 @@
     <table id="closedTable">
       <thead>
         <tr>
-          <th>Symbol</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
+          <th>Symbol</th><th>Dir</th><th>Mode</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
           <th>Score</th><th>Result</th><th>Reason</th><th>Opened</th><th>Closed</th>
         </tr>
       </thead>
@@ -55,6 +83,18 @@
     <h2>Activity Log</h2>
     <pre id="logBox"></pre>
   </section>
+
+  <div id="pwOverlay" class="pw-overlay" style="display:none">
+    <div class="pw-modal">
+      <h3>Enter edit password</h3>
+      <div class="pw-error" id="pwError" style="display:none"></div>
+      <input type="password" id="pwInput" placeholder="EDIT_PASSWORD from .env" />
+      <div class="pw-actions">
+        <button id="pwCancelBtn">Cancel</button>
+        <button id="pwConfirmBtn">Unlock</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

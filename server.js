@@ -3,8 +3,10 @@ const express = require('express');
 const path = require('path');
 const scheduler = require('./lib/scheduler');
 const store = require('./lib/store');
+const settings = require('./lib/settings');
 
 const app = express();
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/status', (req, res) => {
@@ -29,6 +31,20 @@ app.get('/api/trades/closed', (req, res) => {
 
 app.get('/api/stats', (req, res) => {
   res.json(store.getStats());
+});
+
+app.get('/api/settings', (req, res) => {
+  res.json(settings.get());
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const updated = settings.update(req.body || {});
+    res.json(updated);
+  } catch (err) {
+    const status = err.code === 'BAD_PASSWORD' ? 401 : 400;
+    res.status(status).json({ error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;

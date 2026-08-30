@@ -24,6 +24,12 @@ function renderBreakdown(t) {
   return `<details class="score-details"><summary>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</summary><div class="bd-box">${rows}</div></details>`;
 }
 
+function modeBadge(t) {
+  if (!t.autoTraded) return `<span style="color:var(--muted)">SIM</span>`;
+  const lev = t.exchangeOrder && t.exchangeOrder.leverage ? `${t.exchangeOrder.leverage}x` : '';
+  return `<span style="color:var(--amber);font-weight:700">LIVE${lev ? ' ' + lev : ''}</span>`;
+}
+
 function fmt(n) {
   if (n === undefined || n === null) return '-';
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
@@ -52,6 +58,7 @@ async function refreshOpen() {
     <tr>
       <td>${t.symbol}</td>
       <td class="${t.direction}">${t.direction.toUpperCase()}</td>
+      <td>${modeBadge(t)}</td>
       <td>${fmt(t.entry)}</td>
       <td>${fmt(t.sl)}</td>
       <td>${fmt(t.tps[0])}${t.hits.tp1 ? ' ✅' : ''}</td>
@@ -61,7 +68,7 @@ async function refreshOpen() {
       <td>${t.status}</td>
       <td>${renderBreakdown(t)}</td>
       <td class="why">${(t.reasons || []).concat(t.geminiReasons || []).join('; ')}</td>
-    </tr>`).join('') || '<tr><td colspan="11" style="color:var(--muted)">No open trades</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="12" style="color:var(--muted)">No open trades</td></tr>';
 }
 
 async function refreshClosed() {
@@ -70,6 +77,7 @@ async function refreshClosed() {
     <tr>
       <td>${t.symbol}</td>
       <td class="${t.direction}">${t.direction.toUpperCase()}</td>
+      <td>${modeBadge(t)}</td>
       <td>${fmt(t.entry)}</td>
       <td>${fmt(t.sl)}</td>
       <td>${fmt(t.tps[0])}${t.hits && t.hits.tp1 ? ' ✅' : ''}</td>
@@ -80,7 +88,7 @@ async function refreshClosed() {
       <td class="why">${t.closeReason || ''}</td>
       <td>${new Date(t.openedAt).toLocaleString()}</td>
       <td>${new Date(t.closedAt).toLocaleString()}</td>
-    </tr>`).join('') || '<tr><td colspan="12" style="color:var(--muted)">No closed trades yet</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="13" style="color:var(--muted)">No closed trades yet</td></tr>';
 }
 
 async function refreshAll() {
@@ -94,5 +102,85 @@ async function refreshAll() {
 $('startBtn').onclick = async () => { await fetch('/api/start', { method: 'POST' }); refreshAll(); };
 $('stopBtn').onclick = async () => { await fetch('/api/stop', { method: 'POST' }); refreshAll(); };
 
+// ---------------------------------------------------------------------------
+// Auto-trade settings box: fields are read-only until "Edit" is clicked,
+// which prompts for EDIT_PASSWORD (checked server-side on every save — no
+// session/token, so there's nothing to leak by leaving the tab open).
+// ---------------------------------------------------------------------------
+let editing = false;
+
+function applySettingsToForm(s) {
+  $('leverageInput').value = s.leverage;
+  $('usdtInput').value = s.usdtPerTrade;
+  const toggle = $('autotradeToggle');
+  toggle.classList.toggle('on', !!s.autoTradeEnabled);
+  $('autotradeStatusText').textContent = s.autoTradeEnabled ? 'ON (placing real orders)' : 'OFF (tracking only)';
+  $('autotradeStatusText').className = 'autotrade-status ' + (s.autoTradeEnabled ? 'on' : 'off');
+}
+
+async function loadSettings() {
+  const s = await (await fetch('/api/settings')).json();
+  applySettingsToForm(s);
+  return s;
+}
+
+function setEditing(on) {
+  editing = on;
+  $('leverageInput').disabled = !on;
+  $('usdtInput').disabled = !on;
+  $('autotradeToggle').classList.toggle('disabled', !on);
+  $('editBtn').style.display = on ? 'none' : '';
+  $('saveBtn').style.display = on ? '' : 'none';
+}
+
+function showPwModal() {
+  $('pwError').style.display = 'none';
+  $('pwInput').value = '';
+  $('pwOverlay').style.display = 'flex';
+  $('pwInput').focus();
+}
+function hidePwModal() { $('pwOverlay').style.display = 'none'; }
+
+$('editBtn').onclick = showPwModal;
+$('pwCancelBtn').onclick = hidePwModal;
+$('pwConfirmBtn').onclick = () => {
+  // We don't verify the password client-side — just stash it and unlock the
+  // fields; the real check happens server-side when Save is pressed.
+  window.__editPw = $('pwInput').value;
+  hidePwModal();
+  setEditing(true);
+};
+$('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('pwConfirmBtn').click(); });
+
+$('autotradeToggle').onclick = () => {
+  if (!editing) return;
+  $('autotradeToggle').classList.toggle('on');
+  const on = $('autotradeToggle').classList.contains('on');
+  $('autotradeStatusText').textContent = on ? 'ON (placing real orders)' : 'OFF (tracking only)';
+  $('autotradeStatusText').className = 'autotrade-status ' + (on ? 'on' : 'off');
+};
+
+$('saveBtn').onclick = async () => {
+  const body = {
+    password: window.__editPw || '',
+    leverage: Number($('leverageInput').value),
+    usdtPerTrade: Number($('usdtInput').value),
+    autoTradeEnabled: $('autotradeToggle').classList.contains('on'),
+  };
+  const res = await fetch('/api/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert('Could not save: ' + (err.error || res.statusText));
+    return;
+  }
+  window.__editPw = null;
+  setEditing(false);
+  const s = await res.json();
+  applySettingsToForm(s);
+};
+
+loadSettings();
 refreshAll();
 setInterval(refreshAll, 10000);

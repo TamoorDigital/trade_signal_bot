@@ -35,6 +35,14 @@ function fmt(n) {
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
 }
 
+// SL trails over the trade's life (breakeven after TP1, TP1 after TP2, ...).
+// Showing only the current value makes it look like a bug when it equals
+// entry or TP1 by the time a trade closes — so we show both when they differ.
+function slDisplay(t) {
+  if (t.originalSl === undefined || t.originalSl === t.sl) return fmt(t.sl);
+  return `${fmt(t.sl)} <span style="color:var(--muted)">(orig ${fmt(t.originalSl)})</span>`;
+}
+
 async function refreshStatus() {
   const s = await (await fetch('/api/status')).json();
   $('statusDot').className = 'dot ' + (s.running ? 'running' : 'stopped');
@@ -60,7 +68,7 @@ async function refreshOpen() {
       <td class="${t.direction}">${t.direction.toUpperCase()}</td>
       <td>${modeBadge(t)}</td>
       <td>${fmt(t.entry)}</td>
-      <td>${fmt(t.sl)}</td>
+      <td>${slDisplay(t)}</td>
       <td>${fmt(t.tps[0])}${t.hits.tp1 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[1])}${t.hits.tp2 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[2])}${t.hits.tp3 ? ' ✅' : ''}</td>
@@ -79,7 +87,7 @@ async function refreshClosed() {
       <td class="${t.direction}">${t.direction.toUpperCase()}</td>
       <td>${modeBadge(t)}</td>
       <td>${fmt(t.entry)}</td>
-      <td>${fmt(t.sl)}</td>
+      <td>${slDisplay(t)}</td>
       <td>${fmt(t.tps[0])}${t.hits && t.hits.tp1 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[1])}${t.hits && t.hits.tp2 ? ' ✅' : ''}</td>
       <td>${fmt(t.tps[2])}${t.hits && t.hits.tp3 ? ' ✅' : ''}</td>

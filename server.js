@@ -11,6 +11,14 @@ const app = express();
 app.set('trust proxy', true); // needed on Render so req.ip is the real client IP, not the proxy's
 app.use(express.json());
 
+// Unauthenticated on purpose — this is what UptimeRobot (or any keep-alive
+// pinger) should hit. It reveals nothing beyond "the process is up": no
+// trades, no scores, no settings. Everything else below this line still
+// goes through basicAuth.
+app.get('/healthz', (req, res) => {
+  res.json({ ok: true, time: Date.now() });
+});
+
 function safeEqual(a, b) {
   const bufA = Buffer.from(String(a ?? ''));
   const bufB = Buffer.from(String(b ?? ''));

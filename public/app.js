@@ -192,3 +192,83 @@ $('saveBtn').onclick = async () => {
 loadSettings();
 refreshAll();
 setInterval(refreshAll, 10000);
+
+// ---------------------------------------------------------------------------
+// Feedback: click -> analyze every closed trade so far, show Gemini's
+// insight. Never changes anything automatically — purely informational.
+// ---------------------------------------------------------------------------
+function priorityColor(p) {
+  return p === 'high' ? 'var(--red)' : p === 'medium' ? 'var(--amber)' : 'var(--muted)';
+}
+
+function renderFeedback(entry) {
+  if (!entry || entry.ok === false) {
+    return `<div style="color:var(--muted);font-size:12px">${entry && entry.message ? entry.message : entry && entry.error ? entry.error : 'No feedback yet.'}</div>`;
+  }
+  const s = entry.stats;
+  const i = entry.insight || {};
+  const recs = (i.recommendations || []).map(r => `
+    <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div><span style="color:${priorityColor(r.priority)};font-weight:700">[${(r.priority || '').toUpperCase()}]</span> ${r.change}</div>
+      <div style="color:var(--muted);font-size:11px;margin-top:2px">${r.why || ''}</div>
+    </div>`).join('') || '<div style="color:var(--muted)">No specific recommendations returned.</div>';
+
+  const list = (arr) => (arr || []).map(x => `<li>${x}</li>`).join('') || '<li style="color:var(--muted)">-</li>';
+
+  return `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+      Analyzed ${entry.tradesAnalyzed} closed trades · ${new Date(entry.generatedAt).toLocaleString()} ·
+      confidence: <span style="color:var(--amber)">${i.confidence || '-'}</span>
+    </div>
+    ${i.sample_size_note ? `<div style="font-size:11px;color:var(--amber);margin-bottom:10px">${i.sample_size_note}</div>` : ''}
+    <div style="margin-bottom:14px">${i.summary || ''}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+      <div>
+        <div style="color:var(--green);font-size:11px;text-transform:uppercase;margin-bottom:6px">What's working</div>
+        <ul style="margin:0;padding-left:18px;font-size:12px">${list(i.whats_working)}</ul>
+      </div>
+      <div>
+        <div style="color:var(--red);font-size:11px;text-transform:uppercase;margin-bottom:6px">What's not</div>
+        <ul style="margin:0;padding-left:18px;font-size:12px">${list(i.whats_not_working)}</ul>
+      </div>
+    </div>
+    <div style="color:var(--muted);font-size:11px;text-transform:uppercase;margin-bottom:6px">Recommendations</div>
+    ${recs}
+    <details class="score-details" style="margin-top:12px">
+      <summary>View raw stats used for this analysis</summary>
+      <div class="bd-box" style="min-width:auto"><pre style="white-space:pre-wrap;margin:0;font-size:10px">${JSON.stringify(s, null, 2)}</pre></div>
+    </details>
+  `;
+}
+
+async function runFeedback() {
+  $('feedbackBtn').disabled = true;
+  $('feedbackStatus').textContent = 'Analyzing... (this calls Gemini, may take a few seconds)';
+  try {
+    const res = await fetch('/api/feedback', { method: 'POST' });
+    const entry = await res.json();
+    if (!res.ok) {
+      $('feedbackStatus').textContent = entry.error || 'Failed.';
+    } else {
+      $('feedbackStatus').textContent = '';
+      $('feedbackResult').innerHTML = renderFeedback(entry);
+    }
+  } catch (err) {
+    $('feedbackStatus').textContent = 'Error: ' + err.message;
+  }
+  $('feedbackBtn').disabled = false;
+}
+
+$('feedbackBtn').onclick = runFeedback;
+
+// Show the most recent past review (if any) on page load, without spending
+// a fresh Gemini call.
+(async () => {
+  try {
+    const history = await (await fetch('/api/feedback')).json();
+    if (history.length) {
+      $('feedbackResult').innerHTML = renderFeedback(history[history.length - 1]);
+      $('feedbackStatus').textContent = `(showing last review — click above to run a fresh one)`;
+    }
+  } catch {}
+})();

@@ -6,6 +6,7 @@ const scheduler = require('./lib/scheduler');
 const store = require('./lib/store');
 const settings = require('./lib/settings');
 const rateLimit = require('./lib/rateLimit');
+const feedback = require('./lib/feedback');
 
 const app = express();
 app.set('trust proxy', true); // needed on Render so req.ip is the real client IP, not the proxy's
@@ -81,6 +82,26 @@ app.get('/api/stats', (req, res) => {
 
 app.get('/api/settings', (req, res) => {
   res.json(settings.get());
+});
+
+let lastFeedbackAt = 0;
+app.get('/api/feedback', (req, res) => {
+  res.json(store.getFeedbackHistory());
+});
+
+app.post('/api/feedback', async (req, res) => {
+  const cooldownMs = 30000;
+  const sinceLast = Date.now() - lastFeedbackAt;
+  if (sinceLast < cooldownMs) {
+    return res.status(429).json({ error: `Please wait ${Math.ceil((cooldownMs - sinceLast) / 1000)}s before running another review.` });
+  }
+  lastFeedbackAt = Date.now();
+  try {
+    const result = await feedback.runFeedbackAnalysis();
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Brute-force lockout: 5 wrong EDIT_PASSWORD attempts from the same IP

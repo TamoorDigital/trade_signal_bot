@@ -2,10 +2,10 @@ const $ = (id) => document.getElementById(id);
 
 // Same 9 criteria our engine (lib/scoring.js) and the Gemini prompt use.
 const CRITERIA = [
-  { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 20 },
-  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 15 },
-  { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 18 },
-  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 12 },
+  { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 15 },
+  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 12 },
+  { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 22 },
+  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 16 },
   { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 12 },
   { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 5  },
   { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 4  },
@@ -33,6 +33,17 @@ function modeBadge(t) {
 function fmt(n) {
   if (n === undefined || n === null) return '-';
   return Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 });
+}
+
+// Shows local time with the UTC time underneath — Render/exchange logs and
+// most trading references are in UTC, but "local" is what's intuitive to
+// glance at, so we show both instead of picking one.
+function fmtTime(ms) {
+  if (!ms) return '-';
+  const d = new Date(ms);
+  const local = d.toLocaleString();
+  const utc = d.toISOString().slice(0, 19).replace('T', ' ') + ' UTC';
+  return `${local}<br><span style="color:var(--muted);font-size:10px">${utc}</span>`;
 }
 
 // SL trails over the trade's life (breakeven after TP1, TP1 after TP2, ...).
@@ -75,8 +86,9 @@ async function refreshOpen() {
       <td>${fmt(t.lastPrice)}</td>
       <td>${t.status}</td>
       <td>${renderBreakdown(t)}</td>
+      <td style="font-size:10px">${fmtTime(t.openedAt)}</td>
       <td class="why">${(t.reasons || []).concat(t.geminiReasons || []).join('; ')}</td>
-    </tr>`).join('') || '<tr><td colspan="12" style="color:var(--muted)">No open trades</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="13" style="color:var(--muted)">No open trades</td></tr>';
 }
 
 async function refreshClosed() {
@@ -94,8 +106,8 @@ async function refreshClosed() {
       <td>${renderBreakdown(t)}</td>
       <td class="result-${t.result}">${t.result.toUpperCase()}</td>
       <td class="why">${t.closeReason || ''}</td>
-      <td>${new Date(t.openedAt).toLocaleString()}</td>
-      <td>${new Date(t.closedAt).toLocaleString()}</td>
+      <td style="font-size:10px">${fmtTime(t.openedAt)}</td>
+      <td style="font-size:10px">${fmtTime(t.closedAt)}</td>
     </tr>`).join('') || '<tr><td colspan="13" style="color:var(--muted)">No closed trades yet</td></tr>';
 }
 
@@ -197,6 +209,17 @@ setInterval(refreshAll, 10000);
 // Feedback: click -> analyze every closed trade so far, show Gemini's
 // insight. Never changes anything automatically — purely informational.
 // ---------------------------------------------------------------------------
+let currentFeedbackEntry = null;
+
+function downloadJSON(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function priorityColor(p) {
   return p === 'high' ? 'var(--red)' : p === 'medium' ? 'var(--amber)' : 'var(--muted)';
 }
@@ -252,6 +275,8 @@ async function runFeedback() {
     } else {
       $('feedbackStatus').textContent = '';
       $('feedbackResult').innerHTML = renderFeedback(entry);
+      currentFeedbackEntry = entry;
+      $('feedbackDownloadBtn').style.display = '';
     }
   } catch (err) {
     $('feedbackStatus').textContent = 'Error: ' + err.message;
@@ -260,6 +285,11 @@ async function runFeedback() {
 }
 
 $('feedbackBtn').onclick = runFeedback;
+$('feedbackDownloadBtn').onclick = () => {
+  if (!currentFeedbackEntry) return;
+  const stamp = new Date(currentFeedbackEntry.generatedAt || Date.now()).toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  downloadJSON(`feedback-${stamp}.json`, currentFeedbackEntry);
+};
 
 // Show the most recent past review (if any) on page load, without spending
 // a fresh Gemini call.
@@ -267,8 +297,11 @@ $('feedbackBtn').onclick = runFeedback;
   try {
     const history = await (await fetch('/api/feedback')).json();
     if (history.length) {
-      $('feedbackResult').innerHTML = renderFeedback(history[history.length - 1]);
+      const last = history[history.length - 1];
+      $('feedbackResult').innerHTML = renderFeedback(last);
       $('feedbackStatus').textContent = `(showing last review — click above to run a fresh one)`;
+      currentFeedbackEntry = last;
+      $('feedbackDownloadBtn').style.display = '';
     }
   } catch {}
 })();

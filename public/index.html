@@ -59,7 +59,7 @@
       <thead>
         <tr>
           <th>Symbol</th><th>Dir</th><th>Mode</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>TP3</th>
-          <th>Last</th><th>Status</th><th>Score</th><th>Why</th>
+          <th>Last</th><th>Status</th><th>Score</th><th>Opened</th><th>Why</th>
         </tr>
       </thead>
       <tbody id="openBody"></tbody>
@@ -89,6 +89,7 @@
     <div class="autotrade-box" style="flex-direction:column;align-items:stretch;gap:14px">
       <div style="display:flex;align-items:center;gap:14px">
         <button id="feedbackBtn">🔍 Analyze My Trades</button>
+        <button id="feedbackDownloadBtn" style="display:none">⬇ Download JSON</button>
         <span id="feedbackStatus" style="font-size:11px;color:var(--muted)"></span>
       </div>
       <div id="feedbackResult"></div>

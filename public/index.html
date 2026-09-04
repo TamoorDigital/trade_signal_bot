@@ -54,6 +54,24 @@
   </section>
 
   <section>
+    <h2>Backup (survives Render restarts)</h2>
+    <div class="autotrade-box" style="align-items:center">
+      <button id="exportBtn">⬇ Export All Data</button>
+      <button id="importBtn">⬆ Import / Restore</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" />
+      <span id="backupStatus" style="font-size:11px;color:var(--muted)"></span>
+      <div class="autotrade-warn" style="width:100%">
+        Render's free tier wipes local data on restart/redeploy. Export downloads
+        everything (open + closed trades, feedback history, settings) as one JSON
+        file — do this before anything risky, or periodically. Import restores from
+        a previously exported file (requires the edit password) and always turns
+        auto-trade OFF on restore, so a stale backup can never silently re-enable
+        live trading.
+      </div>
+    </div>
+  </section>
+
+  <section>
     <h2>Live Trades</h2>
     <table id="openTable">
       <thead>

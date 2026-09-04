@@ -84,6 +84,34 @@ app.get('/api/settings', (req, res) => {
   res.json(settings.get());
 });
 
+// Manual backup/restore — the practical answer to Render's free-tier disk
+// resetting on redeploy/restart. Export before anything risky (or just
+// periodically); import right after a restart to pick up where you left off.
+app.get('/api/export', (req, res) => {
+  res.json({
+    exportedAt: Date.now(),
+    trades: { open: store.getOpenTrades(), closed: store.getClosedTrades() },
+    feedback: store.getFeedbackHistory(),
+    settings: settings.get(),
+  });
+});
+
+app.post('/api/import', (req, res) => {
+  const { password, data } = req.body || {};
+  const expected = process.env.EDIT_PASSWORD;
+  if (!expected) return res.status(400).json({ error: 'EDIT_PASSWORD is not set in the server environment — refusing import' });
+  if (!safeEqual(password, expected)) return res.status(401).json({ error: 'Incorrect password' });
+  if (!data || typeof data !== 'object') return res.status(400).json({ error: 'No data to import' });
+  try {
+    store.replaceAll(data.trades || { open: [], closed: [] });
+    store.replaceFeedback(data.feedback || []);
+    const restored = settings.restore(data.settings || {});
+    res.json({ ok: true, restoredSettings: restored, tradesRestored: { open: (data.trades?.open || []).length, closed: (data.trades?.closed || []).length } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 let lastFeedbackAt = 0;
 app.get('/api/feedback', (req, res) => {
   res.json(store.getFeedbackHistory());

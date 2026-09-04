@@ -5,11 +5,11 @@ const CRITERIA = [
   { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 15 },
   { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 12 },
   { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 22 },
-  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 16 },
-  { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 12 },
+  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 11 },
+  { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 15 },
   { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 5  },
   { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 4  },
-  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 5  },
+  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 7  },
   { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 2  },
 ];
 
@@ -161,14 +161,20 @@ function showPwModal() {
 }
 function hidePwModal() { $('pwOverlay').style.display = 'none'; }
 
-$('editBtn').onclick = showPwModal;
-$('pwCancelBtn').onclick = hidePwModal;
+$('editBtn').onclick = () => { window.__pendingAction = 'edit'; showPwModal(); };
+$('pwCancelBtn').onclick = () => { pendingImportFile = null; $('importFile').value = ''; hidePwModal(); };
 $('pwConfirmBtn').onclick = () => {
-  // We don't verify the password client-side — just stash it and unlock the
-  // fields; the real check happens server-side when Save is pressed.
-  window.__editPw = $('pwInput').value;
+  const pw = $('pwInput').value;
   hidePwModal();
-  setEditing(true);
+  if (window.__pendingAction === 'import') {
+    runImport(pw);
+  } else {
+    // Settings-edit flow: we don't verify the password client-side — just
+    // stash it and unlock the fields; the real check happens server-side
+    // when Save is pressed.
+    window.__editPw = pw;
+    setEditing(true);
+  }
 };
 $('pwInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('pwConfirmBtn').click(); });
 
@@ -201,9 +207,57 @@ $('saveBtn').onclick = async () => {
   applySettingsToForm(s);
 };
 
-loadSettings();
-refreshAll();
-setInterval(refreshAll, 10000);
+// ---------------------------------------------------------------------------
+// Backup: Export downloads everything as JSON (reuses downloadJSON from the
+// Feedback section above). Import reads a selected file, asks for the edit
+// password via the same modal used for settings, and POSTs it to restore.
+// ---------------------------------------------------------------------------
+$('exportBtn').onclick = async () => {
+  $('backupStatus').textContent = 'Exporting...';
+  try {
+    const data = await (await fetch('/api/export')).json();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    downloadJSON(`signal-dashboard-backup-${stamp}.json`, data);
+    $('backupStatus').textContent = `Exported ${data.trades.open.length} open + ${data.trades.closed.length} closed trades.`;
+  } catch (err) {
+    $('backupStatus').textContent = 'Export failed: ' + err.message;
+  }
+};
+
+let pendingImportFile = null;
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = (e) => {
+  pendingImportFile = e.target.files[0];
+  if (pendingImportFile) {
+    window.__pendingAction = 'import';
+    showPwModal();
+  }
+};
+
+async function runImport(password) {
+  if (!pendingImportFile) return;
+  $('backupStatus').textContent = 'Restoring...';
+  try {
+    const text = await pendingImportFile.text();
+    const data = JSON.parse(text);
+    const res = await fetch('/api/import', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, data }),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      $('backupStatus').textContent = 'Import failed: ' + (result.error || res.statusText);
+    } else {
+      $('backupStatus').textContent = `Restored ${result.tradesRestored.open} open + ${result.tradesRestored.closed} closed trades. Auto-trade forced OFF — re-enable manually if needed.`;
+      refreshAll();
+      loadSettings();
+    }
+  } catch (err) {
+    $('backupStatus').textContent = 'Import failed: ' + err.message;
+  }
+  pendingImportFile = null;
+  $('importFile').value = '';
+}
 
 // ---------------------------------------------------------------------------
 // Feedback: click -> analyze every closed trade so far, show Gemini's
@@ -305,3 +359,7 @@ $('feedbackDownloadBtn').onclick = () => {
     }
   } catch {}
 })();
+
+loadSettings();
+refreshAll();
+setInterval(refreshAll, 10000);

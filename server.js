@@ -72,6 +72,10 @@ app.get('/api/trades/open', (req, res) => {
   res.json(store.getOpenTrades());
 });
 
+app.get('/api/trades/pending', (req, res) => {
+  res.json(store.getPendingTrades());
+});
+
 app.get('/api/trades/closed', (req, res) => {
   res.json(store.getClosedTrades());
 });

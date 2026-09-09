@@ -2,13 +2,13 @@ const $ = (id) => document.getElementById(id);
 
 // Same 9 criteria our engine (lib/scoring.js) and the Gemini prompt use.
 const CRITERIA = [
-  { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 15 },
+  { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 17 },
   { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 8  },
-  { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 22 },
-  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 11 },
+  { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 24 },
+  { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 9  },
   { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 15 },
   { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 9  },
-  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 4  },
+  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 2  },
   { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 7  },
   { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 2  },
 ];
@@ -28,6 +28,18 @@ function modeBadge(t) {
   if (!t.autoTraded) return `<span style="color:var(--muted)">SIM</span>`;
   const lev = t.exchangeOrder && t.exchangeOrder.leverage ? `${t.exchangeOrder.leverage}x` : '';
   return `<span style="color:var(--amber);font-weight:700">LIVE${lev ? ' ' + lev : ''}</span>`;
+}
+
+// Backtests the continuation gate's own "invalid, close now" calls against
+// what price actually did afterward — see lib/continuationAudit.js.
+function auditBadge(t) {
+  const a = t.continuationAudit;
+  if (!a) return '';
+  if (a.pending) return `<div style="color:var(--muted);font-size:9px;margin-top:3px">⏳ gate check pending</div>`;
+  const style = { correct: 'var(--green)', premature: 'var(--red)', inconclusive: 'var(--amber)' }[a.verdict] || 'var(--muted)';
+  const icon = { correct: '✅', premature: '⚠️', inconclusive: '➖' }[a.verdict] || '';
+  const sign = a.pctMoveFromExit >= 0 ? '+' : '';
+  return `<div style="color:${style};font-size:9px;margin-top:3px">${icon} gate ${a.verdict} (${sign}${a.pctMoveFromExit}% since exit)</div>`;
 }
 
 function fmt(n) {
@@ -71,6 +83,26 @@ async function refreshStats() {
   $('statOpen').textContent = s.openCount;
 }
 
+async function refreshPending() {
+  const pending = await (await fetch('/api/trades/pending')).json();
+  $('pendingBody').innerHTML = pending.map(p => {
+    const waitedMin = Math.round((Date.now() - p.createdAt) / 60000);
+    return `
+    <tr>
+      <td>${p.symbol}</td>
+      <td class="${p.direction}">${p.direction.toUpperCase()}</td>
+      <td>${fmt(p.plannedEntry)}</td>
+      <td>${fmt(p.sl)}</td>
+      <td>${fmt(p.tps[0])}</td>
+      <td>${fmt(p.tps[1])}</td>
+      <td>${fmt(p.tps[2])}</td>
+      <td>${renderBreakdown(p)}</td>
+      <td>${waitedMin} min ago</td>
+      <td class="why">${(p.reasons || []).concat(p.geminiReasons || []).join('; ')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="10" style="color:var(--muted)">No signals awaiting confirmation</td></tr>';
+}
+
 async function refreshOpen() {
   const trades = await (await fetch('/api/trades/open')).json();
   $('openBody').innerHTML = trades.map(t => `
@@ -105,7 +137,7 @@ async function refreshClosed() {
       <td>${fmt(t.tps[2])}${t.hits && t.hits.tp3 ? ' ✅' : ''}</td>
       <td>${renderBreakdown(t)}</td>
       <td class="result-${t.result}">${t.result.toUpperCase()}</td>
-      <td class="why">${t.closeReason || ''}</td>
+      <td class="why">${t.closeReason || ''}${auditBadge(t)}</td>
       <td style="font-size:10px">${fmtTime(t.openedAt)}</td>
       <td style="font-size:10px">${fmtTime(t.closedAt)}</td>
     </tr>`).join('') || '<tr><td colspan="13" style="color:var(--muted)">No closed trades yet</td></tr>';
@@ -113,7 +145,7 @@ async function refreshClosed() {
 
 async function refreshAll() {
   try {
-    await Promise.all([refreshStatus(), refreshStats(), refreshOpen(), refreshClosed()]);
+    await Promise.all([refreshStatus(), refreshStats(), refreshPending(), refreshOpen(), refreshClosed()]);
   } catch (err) {
     console.error(err);
   }

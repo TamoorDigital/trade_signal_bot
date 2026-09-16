@@ -12,8 +12,13 @@
     <div class="controls">
       <span id="statusText">Scanning: Stopped</span>
       <span id="trackStatusText" class="track-status">Tracking: active</span>
+      <div class="toggle-wrap" title="Auto-learning loop: every 10 closed trades, re-analyzes ALL trades and applies small bounded MIN_SCORE / confirmation-threshold adjustments. Weights are only ever suggested, never auto-applied.">
+        <div class="toggle" id="autoTuningToggle"></div>
+        <span id="autoTuningStatusText" style="font-size:11px">Auto-tuning: ...</span>
+      </div>
       <button id="startBtn">▶ Start</button>
       <button id="stopBtn">■ Stop</button>
+      <button id="resetAllBtn" style="color:var(--red)">🗑 Reset All Data</button>
     </div>
   </header>
 
@@ -125,6 +130,11 @@
       </div>
       <div id="feedbackResult"></div>
     </div>
+  </section>
+
+  <section>
+    <h2>Learning Log (auto, every 10 trades)</h2>
+    <div id="learningLogBox" style="font-size:12px"></div>
   </section>
 
   <div id="pwOverlay" class="pw-overlay" style="display:none">

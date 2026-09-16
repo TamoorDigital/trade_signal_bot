@@ -7,6 +7,7 @@ const store = require('./lib/store');
 const settings = require('./lib/settings');
 const rateLimit = require('./lib/rateLimit');
 const feedback = require('./lib/feedback');
+const learningState = require('./lib/learningState');
 
 const app = express();
 app.set('trust proxy', true); // needed on Render so req.ip is the real client IP, not the proxy's
@@ -153,6 +154,44 @@ app.post('/api/settings', (req, res) => {
     const status = err.code === 'BAD_PASSWORD' ? 401 : 400;
     res.status(status).json({ error: err.message });
   }
+});
+
+// Header quick-toggle for the auto-learning loop. Deliberately not
+// password-gated — it only turns the system's own bounded, logged
+// self-tuning on/off, it can't size or place orders by itself.
+app.post('/api/auto-tuning', (req, res) => {
+  const updated = settings.setAutoTuning(!!(req.body && req.body.enabled));
+  res.json(updated);
+});
+
+app.get('/api/learning-log', (req, res) => {
+  res.json(learningState.get());
+});
+
+// Destructive — wipes all trade/feedback/learning history (not config like
+// leverage/API keys). Password-gated with the same brute-force lockout as
+// /api/settings, plus the client asks for an extra confirmation dialog.
+app.post('/api/reset-all', (req, res) => {
+  const key = 'reset:' + req.ip;
+  if (rateLimit.isLocked(key)) {
+    const secs = Math.ceil(rateLimit.remainingLockMs(key) / 1000);
+    return res.status(429).json({ error: `Too many wrong attempts. Try again in ${secs}s.` });
+  }
+  const expected = process.env.EDIT_PASSWORD;
+  if (!expected) return res.status(400).json({ error: 'EDIT_PASSWORD is not set — refusing reset' });
+  const password = req.body && req.body.password;
+  const buf = (s) => Buffer.from(String(s ?? ''));
+  const a = buf(password), b = buf(expected);
+  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!match) {
+    rateLimit.recordFailure(key);
+    return res.status(401).json({ error: 'Incorrect password' });
+  }
+  rateLimit.recordSuccess(key);
+  store.replaceAll({ open: [], closed: [], pending: [] });
+  store.replaceFeedback([]);
+  learningState.resetAll();
+  res.json({ ok: true });
 });
 
 const PORT = process.env.PORT || 3000;

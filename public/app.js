@@ -74,6 +74,28 @@ async function refreshStatus() {
   $('logBox').textContent = s.logs.join('\n');
 }
 
+async function refreshAutoTuning() {
+  const s = await (await fetch('/api/settings')).json();
+  $('autoTuningToggle').classList.toggle('on', !!s.autoTuningEnabled);
+  $('autoTuningStatusText').textContent = 'Auto-tuning: ' + (s.autoTuningEnabled ? 'ON' : 'OFF');
+}
+$('autoTuningToggle').onclick = async () => {
+  const currentlyOn = $('autoTuningToggle').classList.contains('on');
+  await fetch('/api/auto-tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !currentlyOn }) });
+  refreshAutoTuning();
+};
+
+$('resetAllBtn').onclick = async () => {
+  if (!confirm('This permanently deletes ALL trade history, feedback history, and learning-loop state. Leverage/USDT-per-trade/API keys are kept. This cannot be undone. Continue?')) return;
+  const password = prompt('Enter the edit password to confirm reset:');
+  if (password === null) return;
+  const res = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
+  const result = await res.json();
+  if (!res.ok) { alert('Reset failed: ' + (result.error || res.statusText)); return; }
+  alert('All data reset.');
+  refreshAll();
+};
+
 async function refreshStats() {
   const s = await (await fetch('/api/stats')).json();
   $('statTotal').textContent = s.totalTrades;
@@ -81,6 +103,23 @@ async function refreshStats() {
   $('statWins').textContent = s.wins;
   $('statLosses').textContent = s.losses;
   $('statOpen').textContent = s.openCount;
+}
+
+function renderLearningLog(state) {
+  const entries = (state.adjustmentLog || []).slice().reverse();
+  if (!entries.length) return '<div style="color:var(--muted)">No auto-learning cycle has run yet (needs 10 closed trades).</div>';
+  return entries.map(e => `
+    <div style="border-bottom:1px solid var(--border);padding:10px 0">
+      <div style="color:var(--muted);font-size:11px">${new Date(e.at).toLocaleString()} · after ${e.closedTradeCount} closed trades</div>
+      <div>MIN_SCORE: ${e.minScore.from} → <b>${e.minScore.to}</b> <span style="color:var(--muted)">(${e.minScore.reason})</span></div>
+      <div>Confirmation move %: ${(e.confirmationMinMovePct.from*100).toFixed(3)}% → <b>${(e.confirmationMinMovePct.to*100).toFixed(3)}%</b> <span style="color:var(--muted)">(${e.confirmationMinMovePct.reason})</span></div>
+      ${e.weightSuggestions && e.weightSuggestions.length ? `<div style="margin-top:6px;color:var(--amber)">Weight suggestions (not auto-applied): ${e.weightSuggestions.map(r=>r.change).join('; ')}</div>` : ''}
+    </div>`).join('');
+}
+
+async function refreshLearningLog() {
+  const state = await (await fetch('/api/learning-log')).json();
+  $('learningLogBox').innerHTML = renderLearningLog(state);
 }
 
 async function refreshPending() {
@@ -145,7 +184,7 @@ async function refreshClosed() {
 
 async function refreshAll() {
   try {
-    await Promise.all([refreshStatus(), refreshStats(), refreshPending(), refreshOpen(), refreshClosed()]);
+    await Promise.all([refreshStatus(), refreshStats(), refreshAutoTuning(), refreshLearningLog(), refreshPending(), refreshOpen(), refreshClosed()]);
   } catch (err) {
     console.error(err);
   }

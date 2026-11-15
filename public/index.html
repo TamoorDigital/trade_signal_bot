@@ -12,22 +12,27 @@
     <div class="controls">
       <span id="statusText">Scanning: Stopped</span>
       <span id="trackStatusText" class="track-status">Tracking: active</span>
-      <div class="toggle-wrap" title="Auto-learning loop: every 10 closed trades, re-analyzes ALL trades and applies small bounded MIN_SCORE / confirmation-threshold adjustments. Weights are only ever suggested, never auto-applied.">
-        <div class="toggle" id="autoTuningToggle"></div>
-        <span id="autoTuningStatusText" style="font-size:11px">Auto-tuning: ...</span>
-      </div>
       <button id="startBtn">▶ Start</button>
       <button id="stopBtn">■ Stop</button>
       <button id="resetAllBtn" style="color:var(--red)">🗑 Reset All Data</button>
     </div>
   </header>
 
-  <section class="stats">
-    <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total Trades</div></div>
-    <div class="stat-card"><div class="stat-value" id="statWinRate">0%</div><div class="stat-label">Win Rate</div></div>
-    <div class="stat-card win"><div class="stat-value" id="statWins">0</div><div class="stat-label">Wins</div></div>
-    <div class="stat-card loss"><div class="stat-value" id="statLosses">0</div><div class="stat-label">Losses</div></div>
-    <div class="stat-card"><div class="stat-value" id="statOpen">0</div><div class="stat-label">Open Now</div></div>
+  <section>
+    <h2>Results <span style="font-size:11px;color:var(--muted);font-weight:normal">(trade is counted by the FURTHEST target it reached)</span></h2>
+    <div class="stats">
+      <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Closed Trades</div></div>
+      <div class="stat-card loss"><div class="stat-value" id="statSl">0</div><div class="stat-label">SL (full loss)</div><div class="stat-sub" id="statSlPct"></div></div>
+      <div class="stat-card tp1"><div class="stat-value" id="statTp1">0</div><div class="stat-label">TP1 only (then BE)</div><div class="stat-sub" id="statTp1Pct"></div></div>
+      <div class="stat-card tp2"><div class="stat-value" id="statTp2">0</div><div class="stat-label">TP2 reached</div><div class="stat-sub" id="statTp2Pct"></div></div>
+      <div class="stat-card win"><div class="stat-value" id="statTp3">0</div><div class="stat-label">TP3 (full win)</div><div class="stat-sub" id="statTp3Pct"></div></div>
+      <div class="stat-card"><div class="stat-value" id="statNetR">0R</div><div class="stat-label">Net R (after fees)</div><div class="stat-sub" id="statAvgR"></div></div>
+      <div class="stat-card"><div class="stat-value" id="statOpen">0</div><div class="stat-label">Open / Pending</div></div>
+    </div>
+    <table style="margin-top:12px" id="splitTable">
+      <thead><tr><th>Group</th><th>Trades</th><th>SL</th><th>TP1 only</th><th>TP2</th><th>TP3</th><th>Reached TP1</th><th>Reached TP2</th><th>Reached TP3</th><th>Net R</th></tr></thead>
+      <tbody id="splitBody"></tbody>
+    </table>
   </section>
 
   <section>
@@ -130,11 +135,6 @@
       </div>
       <div id="feedbackResult"></div>
     </div>
-  </section>
-
-  <section>
-    <h2>Learning Log (auto, every 10 trades)</h2>
-    <div id="learningLogBox" style="font-size:12px"></div>
   </section>
 
   <div id="pwOverlay" class="pw-overlay" style="display:none">

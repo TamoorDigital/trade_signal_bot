@@ -55,7 +55,7 @@ button:hover { border-color: var(--amber-dim); background: #22200f; }
 #startBtn { color: var(--green); }
 #stopBtn { color: var(--red); }
 
-.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
 .stat-card {
   background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
   padding: 14px; text-align: center; border-top: 2px solid var(--amber-dim);
@@ -69,6 +69,11 @@ button:hover { border-color: var(--amber-dim); background: #22200f; }
 .stat-card.win .stat-value { color: var(--green); }
 .stat-card.loss { border-top-color: var(--red); }
 .stat-card.loss .stat-value { color: var(--red); }
+.stat-card.tp1 { border-top-color: var(--amber); }
+.stat-card.tp1 .stat-value { color: var(--amber); }
+.stat-card.tp2 { border-top-color: #4db6ac; }
+.stat-card.tp2 .stat-value { color: #4db6ac; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 table {
   width: 100%; border-collapse: collapse; background: var(--panel);

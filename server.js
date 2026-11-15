@@ -7,7 +7,6 @@ const store = require('./lib/store');
 const settings = require('./lib/settings');
 const rateLimit = require('./lib/rateLimit');
 const feedback = require('./lib/feedback');
-const learningState = require('./lib/learningState');
 
 const app = express();
 app.set('trust proxy', true); // needed on Render so req.ip is the real client IP, not the proxy's
@@ -156,18 +155,6 @@ app.post('/api/settings', (req, res) => {
   }
 });
 
-// Header quick-toggle for the auto-learning loop. Deliberately not
-// password-gated — it only turns the system's own bounded, logged
-// self-tuning on/off, it can't size or place orders by itself.
-app.post('/api/auto-tuning', (req, res) => {
-  const updated = settings.setAutoTuning(!!(req.body && req.body.enabled));
-  res.json(updated);
-});
-
-app.get('/api/learning-log', (req, res) => {
-  res.json(learningState.get());
-});
-
 // Destructive — wipes all trade/feedback/learning history (not config like
 // leverage/API keys). Password-gated with the same brute-force lockout as
 // /api/settings, plus the client asks for an extra confirmation dialog.
@@ -190,7 +177,6 @@ app.post('/api/reset-all', (req, res) => {
   rateLimit.recordSuccess(key);
   store.replaceAll({ open: [], closed: [], pending: [] });
   store.replaceFeedback([]);
-  learningState.resetAll();
   res.json({ ok: true });
 });
 

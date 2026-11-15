@@ -1,16 +1,18 @@
 const $ = (id) => document.getElementById(id);
 
-// Same 9 criteria our engine (lib/scoring.js) and the Gemini prompt use.
+// Same 11 criteria our engine (lib/scoring.js) and the Gemini prompt use.
 const CRITERIA = [
   { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 17 },
-  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 8  },
+  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 3  },
   { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 24 },
   { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 9  },
   { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 15 },
   { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 9  },
-  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 2  },
-  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 7  },
-  { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 2  },
+  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 1  },
+  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 4  },
+  { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 1  },
+  { label: 'VWAP Context',     ourKey: 'vwapContext',     gemKey: 'vwap_context',           weight: 5  },
+  { label: '15m RSI Context',  ourKey: 'rsiContext',      gemKey: 'rsi_context',            weight: 5  },
 ];
 
 function renderBreakdown(t) {
@@ -74,19 +76,8 @@ async function refreshStatus() {
   $('logBox').textContent = s.logs.join('\n');
 }
 
-async function refreshAutoTuning() {
-  const s = await (await fetch('/api/settings')).json();
-  $('autoTuningToggle').classList.toggle('on', !!s.autoTuningEnabled);
-  $('autoTuningStatusText').textContent = 'Auto-tuning: ' + (s.autoTuningEnabled ? 'ON' : 'OFF');
-}
-$('autoTuningToggle').onclick = async () => {
-  const currentlyOn = $('autoTuningToggle').classList.contains('on');
-  await fetch('/api/auto-tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: !currentlyOn }) });
-  refreshAutoTuning();
-};
-
 $('resetAllBtn').onclick = async () => {
-  if (!confirm('This permanently deletes ALL trade history, feedback history, and learning-loop state. Leverage/USDT-per-trade/API keys are kept. This cannot be undone. Continue?')) return;
+  if (!confirm('This permanently deletes ALL trade history, feedback history. Leverage/USDT-per-trade/API keys are kept. This cannot be undone. Continue?')) return;
   const password = prompt('Enter the edit password to confirm reset:');
   if (password === null) return;
   const res = await fetch('/api/reset-all', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
@@ -98,28 +89,19 @@ $('resetAllBtn').onclick = async () => {
 
 async function refreshStats() {
   const s = await (await fetch('/api/stats')).json();
+  const a = s.all;
   $('statTotal').textContent = s.totalTrades;
-  $('statWinRate').textContent = s.winRate + '%';
-  $('statWins').textContent = s.wins;
-  $('statLosses').textContent = s.losses;
-  $('statOpen').textContent = s.openCount;
-}
-
-function renderLearningLog(state) {
-  const entries = (state.adjustmentLog || []).slice().reverse();
-  if (!entries.length) return '<div style="color:var(--muted)">No auto-learning cycle has run yet (needs 10 closed trades).</div>';
-  return entries.map(e => `
-    <div style="border-bottom:1px solid var(--border);padding:10px 0">
-      <div style="color:var(--muted);font-size:11px">${new Date(e.at).toLocaleString()} · after ${e.closedTradeCount} closed trades</div>
-      <div>MIN_SCORE: ${e.minScore.from} → <b>${e.minScore.to}</b> <span style="color:var(--muted)">(${e.minScore.reason})</span></div>
-      <div>Confirmation move %: ${(e.confirmationMinMovePct.from*100).toFixed(3)}% → <b>${(e.confirmationMinMovePct.to*100).toFixed(3)}%</b> <span style="color:var(--muted)">(${e.confirmationMinMovePct.reason})</span></div>
-      ${e.weightSuggestions && e.weightSuggestions.length ? `<div style="margin-top:6px;color:var(--amber)">Weight suggestions (not auto-applied): ${e.weightSuggestions.map(r=>r.change).join('; ')}</div>` : ''}
-    </div>`).join('');
-}
-
-async function refreshLearningLog() {
-  const state = await (await fetch('/api/learning-log')).json();
-  $('learningLogBox').innerHTML = renderLearningLog(state);
+  $('statSl').textContent = a.sl;   $('statSlPct').textContent = a.pct.sl + '%';
+  $('statTp1').textContent = a.tp1; $('statTp1Pct').textContent = a.pct.tp1 + '%';
+  $('statTp2').textContent = a.tp2; $('statTp2Pct').textContent = a.pct.tp2 + '%';
+  $('statTp3').textContent = a.tp3; $('statTp3Pct').textContent = a.pct.tp3 + '%';
+  $('statNetR').textContent = (a.netR > 0 ? '+' : '') + a.netR + 'R';
+  $('statNetR').style.color = a.netR >= 0 ? 'var(--green)' : 'var(--red)';
+  $('statAvgR').textContent = 'avg ' + a.avgR + 'R / trade';
+  $('statOpen').textContent = s.openCount + ' / ' + (s.pendingCount || 0);
+  const row = (name, g) => `<tr><td>${name}</td><td>${g.total}</td><td>${g.sl} (${g.pct.sl}%)</td><td>${g.tp1} (${g.pct.tp1}%)</td><td>${g.tp2} (${g.pct.tp2}%)</td><td>${g.tp3} (${g.pct.tp3}%)</td><td>${g.reached.tp1}%</td><td>${g.reached.tp2}%</td><td>${g.reached.tp3}%</td><td style="color:${g.netR >= 0 ? 'var(--green)' : 'var(--red)'}">${g.netR > 0 ? '+' : ''}${g.netR}R</td></tr>`;
+  $('splitBody').innerHTML = [['All', s.all], ['Long', s.long], ['Short', s.short], ['v2 engine (new)', s.v2], ['Legacy engine (old)', s.legacy]]
+    .map(([n, g]) => row(n, g)).join('');
 }
 
 async function refreshPending() {
@@ -184,7 +166,7 @@ async function refreshClosed() {
 
 async function refreshAll() {
   try {
-    await Promise.all([refreshStatus(), refreshStats(), refreshAutoTuning(), refreshLearningLog(), refreshPending(), refreshOpen(), refreshClosed()]);
+    await Promise.all([refreshStatus(), refreshStats(), refreshPending(), refreshOpen(), refreshClosed()]);
   } catch (err) {
     console.error(err);
   }

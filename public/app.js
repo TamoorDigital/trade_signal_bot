@@ -1,18 +1,16 @@
 const $ = (id) => document.getElementById(id);
 
-// Same 11 criteria our engine (lib/scoring.js) and the Gemini prompt use.
+// Same 9 SMC criteria our engine (lib/scoring.js) and the Gemini prompt use.
 const CRITERIA = [
   { label: 'HTF Bias (1h)',    ourKey: 'htfBias',        gemKey: 'htf_bias_1h',           weight: 17 },
-  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 3  },
+  { label: 'Trend Regime',     ourKey: 'trendRegime',     gemKey: 'ema200_trend_regime',   weight: 8  },
   { label: 'Fresh 15m POI',    ourKey: 'freshPOI',        gemKey: 'fresh_15m_poi',         weight: 24 },
   { label: '5m Sweep',         ourKey: 'liquiditySweep',  gemKey: 'sweep_5m',              weight: 9  },
   { label: '5m BOS',           ourKey: 'bos',             gemKey: 'bos_5m',                weight: 15 },
   { label: 'CHoCH/MSS',        ourKey: 'choch',           gemKey: 'choch_5m',              weight: 9  },
-  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 1  },
-  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 4  },
-  { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 1  },
-  { label: 'VWAP Context',     ourKey: 'vwapContext',     gemKey: 'vwap_context',           weight: 5  },
-  { label: '15m RSI Context',  ourKey: 'rsiContext',      gemKey: 'rsi_context',            weight: 5  },
+  { label: 'CRT/TBS',          ourKey: 'crtTbs',          gemKey: 'crt_tbs_confirmation',  weight: 2  },
+  { label: 'Momentum+Vol',     ourKey: 'momentumVolume',  gemKey: 'momentum_volume',       weight: 7  },
+  { label: 'Candle Pattern',   ourKey: 'candlePattern',   gemKey: 'candle_pattern',         weight: 2  },
 ];
 
 function renderBreakdown(t) {
@@ -23,7 +21,14 @@ function renderBreakdown(t) {
     const g = gbd && gbd[c.gemKey] !== undefined ? gbd[c.gemKey] : '-';
     return `<div class="bd-row"><span class="bd-label">${c.label}</span><span>Q ${q}/${c.weight}</span><span>G ${g}/${c.weight}</span></div>`;
   }).join('');
-  return `<details class="score-details"><summary>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</summary><div class="bd-box">${rows}</div></details>`;
+  const SN = { rsi: 'RSI', avwap: 'Anchored VWAP', fib: 'Fibonacci' };
+  const strat = t.strategies ? Object.entries(t.strategies).map(([n, x]) => {
+    const g = t.geminiStrategies && t.geminiStrategies[n];
+    const parts = x.parts ? Object.entries(x.parts).map(([k, v]) => `${k} ${v}`).join(', ') : '';
+    return `<div class="bd-row"><span class="bd-label">${SN[n] || n}${x.pass ? ' ✓' : ''}</span><span>Q ${x.score}/10</span><span>G ${g ? g.score : '-'}/10</span></div>`
+      + `<div style="color:var(--muted);font-size:10px;margin:-2px 0 4px">${parts}</div>`;
+  }).join('') : '';
+  return `<details class="score-details"><summary>Q:${fmt(t.ourScore)}/${t.maxScore} G:${fmt(t.geminiScore)}/${t.maxScore}</summary><div class="bd-box">${rows}${strat ? `<div style="margin-top:6px;font-weight:700">Strategies (0-10 each)</div>${strat}` : ''}</div></details>`;
 }
 
 function modeBadge(t) {
@@ -100,7 +105,7 @@ async function refreshStats() {
   $('statAvgR').textContent = 'avg ' + a.avgR + 'R / trade';
   $('statOpen').textContent = s.openCount + ' / ' + (s.pendingCount || 0);
   const row = (name, g) => `<tr><td>${name}</td><td>${g.total}</td><td>${g.sl} (${g.pct.sl}%)</td><td>${g.tp1} (${g.pct.tp1}%)</td><td>${g.tp2} (${g.pct.tp2}%)</td><td>${g.tp3} (${g.pct.tp3}%)</td><td>${g.reached.tp1}%</td><td>${g.reached.tp2}%</td><td>${g.reached.tp3}%</td><td style="color:${g.netR >= 0 ? 'var(--green)' : 'var(--red)'}">${g.netR > 0 ? '+' : ''}${g.netR}R</td></tr>`;
-  $('splitBody').innerHTML = [['All', s.all], ['Long', s.long], ['Short', s.short], ['v2 engine (new)', s.v2], ['Legacy engine (old)', s.legacy]]
+  $('splitBody').innerHTML = [['All', s.all], ['Long', s.long], ['Short', s.short]]
     .map(([n, g]) => row(n, g)).join('');
 }
 

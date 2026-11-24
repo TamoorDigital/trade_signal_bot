@@ -109,6 +109,14 @@ async function refreshStats() {
     .map(([n, g]) => row(n, g)).join('');
 }
 
+async function refreshFunnel() {
+  const f = await (await fetch('/api/funnel')).json();
+  $('funnelBody').innerHTML = f.stages.map(x => {
+    const strong = x.key === 'trades_opened' || x.key === 'pending_created';
+    return `<tr${strong ? ' style="font-weight:700"' : ''}><td>${x.label}</td><td>${x.today}</td><td>${x.last7}</td></tr>`;
+  }).join('');
+}
+
 async function refreshPending() {
   const pending = await (await fetch('/api/trades/pending')).json();
   $('pendingBody').innerHTML = pending.map(p => {
@@ -171,7 +179,7 @@ async function refreshClosed() {
 
 async function refreshAll() {
   try {
-    await Promise.all([refreshStatus(), refreshStats(), refreshPending(), refreshOpen(), refreshClosed()]);
+    await Promise.all([refreshStatus(), refreshStats(), refreshFunnel(), refreshPending(), refreshOpen(), refreshClosed()]);
   } catch (err) {
     console.error(err);
   }

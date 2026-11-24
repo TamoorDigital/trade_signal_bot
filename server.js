@@ -80,6 +80,8 @@ app.get('/api/trades/closed', (req, res) => {
   res.json(store.getClosedTrades());
 });
 
+app.get('/api/funnel', (req, res) => res.json(require('./lib/funnel').get()));
+
 app.get('/api/stats', (req, res) => {
   res.json(store.getStats());
 });
